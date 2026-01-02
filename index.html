@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoFan: Global Conquest</title>
+    <title>GeoFan: Tactical Balance</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
@@ -14,36 +14,26 @@
         }
         body { font-family: 'Segoe UI', sans-serif; background: var(--sea); color: #fff; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* ЛОББИ */
         #lobby { position: fixed; inset: 0; background: var(--sea); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .box { background: var(--panel); padding: 30px; border-radius: 20px; border: 2px solid var(--accent); text-align: center; width: 350px; }
         input { width: 80%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0f172a; color: #fff; }
         button { padding: 12px 20px; border-radius: 8px; border: none; background: var(--accent); cursor: pointer; font-weight: bold; }
 
-        /* ИГРА */
         #game { display: none; width: 100%; grid-template-columns: 280px 1fr 280px; gap: 10px; padding: 10px; box-sizing: border-box; }
-        
-        #map-area { 
-            background: #020617; border-radius: 20px; position: relative;
-            display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; padding: 20px;
-        }
+        #map-area { background: #020617; border-radius: 20px; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; padding: 20px; position: relative; }
 
-        .island {
-            width: 200px; height: 200px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 15px;
-            background: rgba(255,255,255,0.05); transition: 0.3s;
-            clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
-        }
-
-        .cell {
-            background: #334155; border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
-        }
+        .island { width: 180px; height: 180px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 15px; background: rgba(255,255,255,0.05); clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%); }
+        .cell { background: #334155; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
 
         .side { background: var(--panel); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .log { flex: 1; background: #000; border-radius: 10px; padding: 10px; font-size: 11px; color: #94a3b8; overflow-y: auto; }
         
+        /* ЭКРАН ПОБЕДЫ */
+        #end-screen { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .end-icon { font-size: 80px; margin-bottom: 20px; }
+
         .p-item { padding: 8px; border-radius: 6px; margin-bottom: 5px; font-size: 13px; border-left: 4px solid #fff; }
-        .active-turn { border: 2px solid var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .active-turn { border: 2px solid var(--accent); background: rgba(56, 189, 248, 0.1); }
     </style>
 </head>
 <body>
@@ -61,6 +51,13 @@
     </div>
 </div>
 
+<div id="end-screen">
+    <div class="end-icon" id="end-icon">🏆</div>
+    <h1 id="end-title">ПОБЕДА!</h1>
+    <p id="end-msg"></p>
+    <button onclick="location.reload()">В ГЛАВНОЕ МЕНЮ</button>
+</div>
+
 <div id="game">
     <div class="side">
         <h3 id="m-nick" style="color:var(--accent); margin:0;"></h3>
@@ -70,15 +67,15 @@
             🪖 Резерв: <b id="m-army">0</b><br>
             📈 Доход: <b id="m-eco">1.0</b>
         </div>
-        <button onclick="action('eco')">🏗️ Развить Экономику ($400)</button>
-        <button onclick="action('army')">🛡️ Нанять отряд ($250)</button>
+        <button onclick="action('eco')">🏗️ Экономика ($400)</button>
+        <button onclick="action('army')">🛡️ Нанять войско ($250)</button>
         <button onclick="action('end')" style="background:var(--p2); color:#000; margin-top:20px;">ЗАВЕРШИТЬ ХОД</button>
     </div>
 
     <div id="map-area"></div>
 
     <div class="side">
-        <div id="turn-display" style="text-align:center; font-weight:bold; color:var(--accent);">Ход: ...</div>
+        <div id="turn-display" style="text-align:center; font-weight:bold; color:var(--accent); padding:5px; border:1px solid var(--accent); border-radius:5px;"></div>
         <h4>ИГРОКИ:</h4>
         <div id="game-p-list"></div>
         <h4>ЛОГ:</h4>
@@ -97,19 +94,18 @@
 
     let myId, myRoom, state, isHost = false;
     const countries = [
-        { name: "Красный Легион", color: "#ef4444", cash: 800, army: 100, eco: 0.8 },
-        { name: "Зеленый Лес", color: "#22c55e", cash: 1200, army: 50, eco: 1.2 },
-        { name: "Золотые Пески", color: "#eab308", cash: 2500, army: 10, eco: 2.0 },
-        { name: "Фиолетовый Пик", color: "#a855f7", cash: 1000, army: 40, eco: 1.0 },
-        { name: "Оранжевый Риф", color: "#f97316", cash: 1100, army: 60, eco: 0.9 },
-        { name: "Синяя Вода", color: "#06b6d4", cash: 1400, army: 30, eco: 1.5 }
+        { name: "Красный Легион", color: "#ef4444", cash: 600, army: 30, eco: 0.8 },
+        { name: "Зеленый Лес", color: "#22c55e", cash: 1000, army: 20, eco: 1.2 },
+        { name: "Золотые Пески", color: "#eab308", cash: 1800, army: 5, eco: 1.8 },
+        { name: "Фиолетовый Пик", color: "#a855f7", cash: 800, army: 25, eco: 1.0 },
+        { name: "Оранжевый Риф", color: "#f97316", cash: 900, army: 35, eco: 0.7 },
+        { name: "Синяя Вода", color: "#06b6d4", cash: 1200, army: 15, eco: 1.4 }
     ];
 
     async function join() {
         const nick = document.getElementById('nick').value;
         myRoom = document.getElementById('room').value;
         if(!nick || !myRoom) return;
-
         myId = nick + "_" + Math.floor(Math.random()*999);
         const ref = db.ref('geofan/rooms/' + myRoom);
         const snap = await ref.get();
@@ -118,22 +114,17 @@
             isHost = true;
             await ref.set({
                 status: 'lobby',
-                players: [{id: myId, name: nick, cash: 0, army: 0, eco: 1, cIdx: 0}],
-                turn: 0,
-                log: ["Лобби создано."],
+                players: [{id: myId, name: nick, cIdx: 0, dead: false}],
+                turn: 0, log: ["Лобби создано."],
                 cells: Array(36).fill(0).map((_, i) => ({owner: Math.floor(i/6), army: 15}))
             });
         } else {
             let d = snap.val();
-            d.players.push({id: myId, name: nick, cash: 0, army: 0, eco: 1, cIdx: d.players.length});
+            d.players.push({id: myId, name: nick, cIdx: d.players.length, dead: false});
             await ref.update({players: d.players});
         }
-
         document.getElementById('wait').style.display = 'block';
-        ref.on('value', s => {
-            state = s.val();
-            updateUI();
-        });
+        ref.on('value', s => { state = s.val(); updateUI(); });
     }
 
     function updateUI() {
@@ -143,15 +134,30 @@
         } else {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game').style.display = 'grid';
+            checkWinCondition();
             renderMap();
         }
     }
 
+    function checkWinCondition() {
+        const activePlayers = [...new Set(state.cells.map(c => c.owner))];
+        if(activePlayers.length === 1 && state.status === 'play') {
+            const winner = state.players.find(p => p.cIdx === activePlayers[0]);
+            showEndScreen(winner.id === myId);
+        }
+    }
+
+    function showEndScreen(isWin) {
+        const screen = document.getElementById('end-screen');
+        screen.style.display = 'flex';
+        document.getElementById('end-icon').innerText = isWin ? "🏆" : "💀";
+        document.getElementById('end-title').innerText = isWin ? "ПОБЕДА!" : "ПОРАЖЕНИЕ";
+        document.getElementById('end-msg').innerText = isWin ? "Вы захватили весь мир!" : "Ваша страна пала.";
+    }
+
     async function start() {
         state.players.forEach((p, i) => {
-            p.cash = countries[i].cash;
-            p.army = countries[i].army;
-            p.eco = countries[i].eco;
+            Object.assign(p, countries[i]);
         });
         await db.ref('geofan/rooms/' + myRoom).update({status: 'play', players: state.players});
     }
@@ -163,32 +169,31 @@
         document.getElementById('m-cash').innerText = Math.floor(me.cash);
         document.getElementById('m-army').innerText = me.army;
         document.getElementById('m-eco').innerText = me.eco.toFixed(1);
-        document.getElementById('turn-display').innerText = "Ходит: " + state.players[state.turn].name;
+        document.getElementById('turn-display').innerText = "ХОД: " + state.players[state.turn].name;
 
-        // Список игроков сбоку
-        document.getElementById('game-p-list').innerHTML = state.players.map((p, i) => 
-            `<div class="p-item ${state.turn === i ? 'active-turn' : ''}" style="border-color:${countries[p.cIdx].color}">
-                ${p.name} (${countries[p.cIdx].name})
-            </div>`
-        ).join('');
+        document.getElementById('game-p-list').innerHTML = state.players.map((p, i) => {
+            const hasCells = state.cells.some(c => c.owner === p.cIdx);
+            return `<div class="p-item ${state.turn === i ? 'active-turn' : ''}" style="border-color:${countries[p.cIdx].color}; opacity: ${hasCells ? 1 : 0.4}">
+                ${p.name} ${hasCells ? '' : '(РАЗБИТ)'}
+            </div>`;
+        }).join('');
 
         const map = document.getElementById('map-area');
         map.innerHTML = '';
         for(let i=0; i<6; i++) {
-            const island = document.createElement('div');
-            island.className = 'island';
-            island.style.backgroundColor = countries[i].color + '22';
-            state.cells.forEach((cell, idx) => {
-                if(Math.floor(idx/6) === i) {
-                    const cDiv = document.createElement('div');
-                    cDiv.className = 'cell';
-                    cDiv.style.backgroundColor = countries[cell.owner].color;
-                    cDiv.innerText = cell.army;
-                    cDiv.onclick = () => handleAttack(idx);
-                    island.appendChild(cDiv);
-                }
+            const isl = document.createElement('div');
+            isl.className = 'island';
+            isl.style.backgroundColor = countries[i].color + '15';
+            state.cells.filter((_, idx) => Math.floor(idx/6) === i).forEach((cell, cellIdx) => {
+                const gIdx = i*6 + cellIdx;
+                const cDiv = document.createElement('div');
+                cDiv.className = 'cell';
+                cDiv.style.backgroundColor = countries[cell.owner].color;
+                cDiv.innerText = cell.army;
+                cDiv.onclick = () => handleAttack(gIdx);
+                isl.appendChild(cDiv);
             });
-            map.appendChild(island);
+            map.appendChild(isl);
         }
         document.getElementById('game-log').innerHTML = state.log.slice(-8).reverse().map(m => `> ${m}`).join('<br>');
     }
@@ -199,20 +204,15 @@
         const cell = state.cells[idx];
         if(cell.owner === me.cIdx) return;
 
-        const amount = prompt(`У тебя ${me.army} воинов. Сколько отправить в атаку?`, me.army);
+        const amount = prompt(`У тебя ${me.army} воинов. Сколько отправить?`, me.army);
         const val = parseInt(amount);
-        if(isNaN(val) || val <= 0 || val > me.army) return alert("Некорректное число!");
+        if(!val || val <= 0 || val > me.army) return;
 
-        const myPower = val * (Math.random() + 0.6);
-        const enPower = cell.army * (Math.random() + 0.6);
-
-        if(myPower > enPower) {
-            state.log.push(`${me.name} захватил клетку!`);
-            cell.owner = me.cIdx;
-            cell.army = Math.floor(val * 0.5);
-            me.army -= val;
+        if(val * (Math.random() + 0.5) > cell.army * (Math.random() + 0.5)) {
+            state.log.push(`${me.name} захватил территорию!`);
+            cell.owner = me.cIdx; cell.army = Math.floor(val * 0.4); me.army -= val;
         } else {
-            state.log.push(`Атака ${me.name} отбита.`);
+            state.log.push(`Атака ${me.name} провалилась.`);
             me.army -= val;
         }
         await db.ref('geofan/rooms/' + myRoom).set(state);
@@ -221,15 +221,15 @@
     async function action(type) {
         if(state.players[state.turn].id !== myId) return;
         const me = state.players[state.turn];
-
-        if(type === 'eco' && me.cash >= 400) { me.cash -= 400; me.eco += 0.5; }
-        else if(type === 'army' && me.cash >= 250) { me.cash -= 250; me.army += 30; }
+        if(type === 'eco' && me.cash >= 400) { me.cash -= 400; me.eco += 0.4; }
+        else if(type === 'army' && me.cash >= 250) { me.cash -= 250; me.army += 15; }
         else if(type === 'end') {
-            me.cash += (200 * me.eco); // Доход увеличен
-            state.turn = (state.turn + 1) % state.players.length;
+            me.cash += (180 * me.eco);
+            do { state.turn = (state.turn + 1) % state.players.length; } 
+            while (!state.cells.some(c => c.owner === state.players[state.turn].cIdx));
         }
         await db.ref('geofan/rooms/' + myRoom).set(state);
     }
 </script>
 </body>
-</html>
+                                                 </html>
