@@ -3,103 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoFan: Archipelago</title>
+    <title>GeoFan: Global Conquest</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root {
-            --sea: #082f49; --land: #1e293b; --accent: #38bdf8;
+            --sea: #0f172a; --panel: #1e293b; --accent: #38bdf8;
             --p1: #ef4444; --p2: #22c55e; --p3: #eab308;
             --p4: #a855f7; --p5: #f97316; --p6: #06b6d4;
         }
-        body { font-family: 'Ubuntu', sans-serif; background: var(--sea); color: #fff; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--sea); color: #fff; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* ЛОББИ (упрощено для входа) */
-        #lobby { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        .box { background: #1e293b; padding: 40px; border-radius: 30px; border: 3px solid var(--accent); text-align: center; }
-        input { display: block; width: 250px; padding: 15px; margin: 10px auto; border-radius: 10px; border: none; background: #0f172a; color: #fff; }
-        button { padding: 15px 30px; border-radius: 10px; border: none; background: var(--accent); font-weight: bold; cursor: pointer; }
+        /* ЛОББИ */
+        #lobby { position: fixed; inset: 0; background: var(--sea); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .box { background: var(--panel); padding: 30px; border-radius: 20px; border: 2px solid var(--accent); text-align: center; width: 350px; }
+        input { width: 80%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0f172a; color: #fff; }
+        button { padding: 12px 20px; border-radius: 8px; border: none; background: var(--accent); cursor: pointer; font-weight: bold; }
 
-        /* ИГРОВОЕ ПОЛЕ */
-        #game { display: none; display: grid; grid-template-columns: 300px 1fr 250px; height: 100%; gap: 10px; padding: 10px; box-sizing: border-box; }
+        /* ИГРА */
+        #game { display: none; width: 100%; grid-template-columns: 280px 1fr 280px; gap: 10px; padding: 10px; box-sizing: border-box; }
         
         #map-area { 
-            position: relative; 
-            background: radial-gradient(circle, #0c4a6e 0%, #082f49 100%); 
-            border-radius: 20px; 
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+            background: #020617; border-radius: 20px; position: relative;
             display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; padding: 20px;
         }
 
-        /* ОСТРОВА */
         .island {
-            position: relative;
-            width: 220px; height: 220px;
-            background: rgba(255,255,255,0.05);
-            margin: 10px;
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 20px;
-            /* Делаем форму острова «кривой» */
-            clip-path: polygon(10% 25%, 35% 10%, 75% 15%, 95% 40%, 85% 85%, 45% 95%, 5% 80%);
-            border: 2px solid rgba(56, 189, 248, 0.2);
-            transition: 0.5s;
+            width: 200px; height: 200px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 15px;
+            background: rgba(255,255,255,0.05); transition: 0.3s;
+            clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
         }
 
-        /* Клетки внутри островов */
         .cell {
-            background: #475569;
-            border-radius: 50% 20% 50% 10%; /* Странная форма клетки */
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 10px; font-weight: bold; color: #fff;
-            cursor: pointer; transition: 0.3s;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: #334155; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
         }
-        .cell:hover { transform: scale(1.1) rotate(5deg); background: #64748b; }
-        .cell-army { font-size: 14px; }
 
-        .side { background: #1e293b; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #334155; }
-        .log { flex: 1; background: #000; border-radius: 10px; padding: 10px; font-size: 12px; color: #38bdf8; overflow-y: auto; font-family: 'Courier New', monospace; }
+        .side { background: var(--panel); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .log { flex: 1; background: #000; border-radius: 10px; padding: 10px; font-size: 11px; color: #94a3b8; overflow-y: auto; }
         
-        .turn-btn { background: var(--p2); color: #000; padding: 15px; font-weight: bold; border-radius: 10px; margin-top: auto; }
-        .status-bar { font-size: 1.2em; font-weight: bold; color: var(--accent); text-align: center; margin-bottom: 20px; }
+        .p-item { padding: 8px; border-radius: 6px; margin-bottom: 5px; font-size: 13px; border-left: 4px solid #fff; }
+        .active-turn { border: 2px solid var(--accent); box-shadow: 0 0 10px var(--accent); }
     </style>
 </head>
 <body>
 
 <div id="lobby">
     <div class="box">
-        <h1 style="color:var(--accent)">GeoFan: Острова</h1>
+        <h2>GeoFan Online</h2>
         <input type="text" id="nick" placeholder="Твой ник">
         <input type="text" id="room" placeholder="ID Комнаты">
-        <button onclick="join()">ВОЙТИ В СЕССИЮ</button>
-        <div id="lobby-wait" style="display:none; margin-top:20px;">
-            <p>Ждем игроков...</p>
-            <button onclick="start()" style="background:var(--p2)">СТАРТ</button>
+        <button onclick="join()">ПОДКЛЮЧИТЬСЯ</button>
+        <div id="wait" style="display:none; margin-top:20px;">
+            <div id="p-list" style="text-align:left; margin-bottom:15px;"></div>
+            <button id="start-btn" onclick="start()" style="background:var(--p2); display:none;">НАЧАТЬ ИГРУ</button>
         </div>
     </div>
 </div>
 
 <div id="game">
     <div class="side">
-        <div id="player-info">
-            <h2 id="m-nick">Загрузка...</h2>
-            <div style="font-size: 0.8em; opacity: 0.7;" id="m-country"></div>
-            <hr>
-            <p>💰 Деньги: <span id="m-cash">0</span></p>
-            <p>🪖 Армия: <span id="m-army">0</span></p>
-            <p>🏗️ Эко: <span id="m-eco">1.0</span></p>
+        <h3 id="m-nick" style="color:var(--accent); margin:0;"></h3>
+        <p id="m-country" style="font-size:12px; opacity:0.7;"></p>
+        <div style="background:#0f172a; padding:10px; border-radius:10px;">
+            💰 Золото: <b id="m-cash">0</b><br>
+            🪖 Резерв: <b id="m-army">0</b><br>
+            📈 Доход: <b id="m-eco">1.0</b>
         </div>
-        <button onclick="action('eco')">🏢 Построить завод ($300)</button>
-        <button onclick="action('army')">🛡️ Призвать войска ($200)</button>
-        <button class="turn-btn" onclick="action('end')">ЗАВЕРШИТЬ ХОД</button>
+        <button onclick="action('eco')">🏗️ Развить Экономику ($400)</button>
+        <button onclick="action('army')">🛡️ Нанять отряд ($250)</button>
+        <button onclick="action('end')" style="background:var(--p2); color:#000; margin-top:20px;">ЗАВЕРШИТЬ ХОД</button>
     </div>
 
-    <div id="map-area">
-        </div>
+    <div id="map-area"></div>
 
     <div class="side">
-        <div class="status-bar" id="turn-name">Ход: ...</div>
-        <h3>СОБЫТИЯ</h3>
+        <div id="turn-display" style="text-align:center; font-weight:bold; color:var(--accent);">Ход: ...</div>
+        <h4>ИГРОКИ:</h4>
+        <div id="game-p-list"></div>
+        <h4>ЛОГ:</h4>
         <div class="log" id="game-log"></div>
     </div>
 </div>
@@ -114,129 +96,140 @@
     const db = firebase.database();
 
     let myId, myRoom, state, isHost = false;
-    const countryStyles = [
-        { name: "Остров Вулканов", color: "#ef4444", clip: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)" },
-        { name: "Ледяной Пик", color: "#06b6d4", clip: "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)" },
-        { name: "Золотой Риф", color: "#eab308", clip: "polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)" },
-        { name: "Зеленая Лагуна", color: "#22c55e", clip: "circle(50% at 50% 50%)" },
-        { name: "Туманный Край", color: "#a855f7", clip: "polygon(0% 15%, 100% 15%, 85% 85%, 15% 85%)" },
-        { name: "Железная Скала", color: "#f97316", clip: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" }
+    const countries = [
+        { name: "Красный Легион", color: "#ef4444", cash: 800, army: 100, eco: 0.8 },
+        { name: "Зеленый Лес", color: "#22c55e", cash: 1200, army: 50, eco: 1.2 },
+        { name: "Золотые Пески", color: "#eab308", cash: 2500, army: 10, eco: 2.0 },
+        { name: "Фиолетовый Пик", color: "#a855f7", cash: 1000, army: 40, eco: 1.0 },
+        { name: "Оранжевый Риф", color: "#f97316", cash: 1100, army: 60, eco: 0.9 },
+        { name: "Синяя Вода", color: "#06b6d4", cash: 1400, army: 30, eco: 1.5 }
     ];
 
     async function join() {
         const nick = document.getElementById('nick').value;
         myRoom = document.getElementById('room').value;
-        if(!nick || !myRoom) return alert("Заполни поля!");
+        if(!nick || !myRoom) return;
 
         myId = nick + "_" + Math.floor(Math.random()*999);
-        const ref = db.ref('geofan/r/' + myRoom);
+        const ref = db.ref('geofan/rooms/' + myRoom);
         const snap = await ref.get();
 
         if(!snap.exists()) {
             isHost = true;
             await ref.set({
                 status: 'lobby',
-                players: [{id: myId, name: nick, cash: 1000, army: 50, eco: 1, countryIdx: 0}],
+                players: [{id: myId, name: nick, cash: 0, army: 0, eco: 1, cIdx: 0}],
                 turn: 0,
-                log: ["Мир создан. Ожидание лидеров."],
-                cells: Array(36).fill(0).map((_, i) => ({owner: Math.floor(i/6), army: 10}))
+                log: ["Лобби создано."],
+                cells: Array(36).fill(0).map((_, i) => ({owner: Math.floor(i/6), army: 15}))
             });
         } else {
             let d = snap.val();
-            if(d.players.length >= 6) return alert("Мест нет!");
-            d.players.push({id: myId, name: nick, cash: 1000, army: 50, eco: 1, countryIdx: d.players.length});
+            d.players.push({id: myId, name: nick, cash: 0, army: 0, eco: 1, cIdx: d.players.length});
             await ref.update({players: d.players});
         }
 
-        document.getElementById('lobby-wait').style.display = 'block';
+        document.getElementById('wait').style.display = 'block';
         ref.on('value', s => {
             state = s.val();
-            if(state.status === 'play') {
-                document.getElementById('lobby').style.display = 'none';
-                document.getElementById('game').style.display = 'grid';
-                render();
-            }
+            updateUI();
         });
     }
 
-    async function start() {
-        await db.ref('geofan/r/' + myRoom).update({status: 'play'});
+    function updateUI() {
+        if(state.status === 'lobby') {
+            document.getElementById('p-list').innerHTML = state.players.map(p => `👤 ${p.name}`).join('<br>');
+            if(isHost) document.getElementById('start-btn').style.display = 'block';
+        } else {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game').style.display = 'grid';
+            renderMap();
+        }
     }
 
-    function render() {
+    async function start() {
+        state.players.forEach((p, i) => {
+            p.cash = countries[i].cash;
+            p.army = countries[i].army;
+            p.eco = countries[i].eco;
+        });
+        await db.ref('geofan/rooms/' + myRoom).update({status: 'play', players: state.players});
+    }
+
+    function renderMap() {
         const me = state.players.find(p => p.id === myId);
         document.getElementById('m-nick').innerText = me.name;
-        document.getElementById('m-country').innerText = countryStyles[me.countryIdx].name;
+        document.getElementById('m-country').innerText = countries[me.cIdx].name;
         document.getElementById('m-cash').innerText = Math.floor(me.cash);
         document.getElementById('m-army').innerText = me.army;
         document.getElementById('m-eco').innerText = me.eco.toFixed(1);
-        document.getElementById('turn-name').innerText = "Ход: " + state.players[state.turn].name;
+        document.getElementById('turn-display').innerText = "Ходит: " + state.players[state.turn].name;
+
+        // Список игроков сбоку
+        document.getElementById('game-p-list').innerHTML = state.players.map((p, i) => 
+            `<div class="p-item ${state.turn === i ? 'active-turn' : ''}" style="border-color:${countries[p.cIdx].color}">
+                ${p.name} (${countries[p.cIdx].name})
+            </div>`
+        ).join('');
 
         const map = document.getElementById('map-area');
         map.innerHTML = '';
-
         for(let i=0; i<6; i++) {
             const island = document.createElement('div');
             island.className = 'island';
-            island.style.clipPath = countryStyles[i].clip;
-            island.style.backgroundColor = `rgba(${hexToRgb(countryStyles[i].color)}, 0.15)`;
-            
-            state.cells.filter((_, idx) => Math.floor(idx/6) === i).forEach((cell, cellIdx) => {
-                const globalIdx = i*6 + cellIdx;
-                const cDiv = document.createElement('div');
-                cDiv.className = 'cell';
-                cDiv.style.backgroundColor = countryStyles[cell.owner].color;
-                cDiv.innerHTML = `<span class="cell-army">${cell.army}</span>`;
-                cDiv.onclick = () => attack(globalIdx);
-                island.appendChild(cDiv);
+            island.style.backgroundColor = countries[i].color + '22';
+            state.cells.forEach((cell, idx) => {
+                if(Math.floor(idx/6) === i) {
+                    const cDiv = document.createElement('div');
+                    cDiv.className = 'cell';
+                    cDiv.style.backgroundColor = countries[cell.owner].color;
+                    cDiv.innerText = cell.army;
+                    cDiv.onclick = () => handleAttack(idx);
+                    island.appendChild(cDiv);
+                }
             });
             map.appendChild(island);
         }
-
-        const log = document.getElementById('game-log');
-        log.innerHTML = state.log.slice(-10).reverse().map(m => `> ${m}`).join('<br>');
+        document.getElementById('game-log').innerHTML = state.log.slice(-8).reverse().map(m => `> ${m}`).join('<br>');
     }
 
-    async function action(type) {
-        if(state.players[state.turn].id !== myId) return alert("Не твой ход!");
-        const me = state.players[state.turn];
-
-        if(type === 'eco' && me.cash >= 300) { me.cash -= 300; me.eco += 0.4; state.log.push(`${me.name} строит заводы.`); }
-        else if(type === 'army' && me.cash >= 200) { me.cash -= 200; me.army += 25; state.log.push(`${me.name} обучает солдат.`); }
-        else if(type === 'end') {
-            me.cash += (150 * me.eco);
-            state.turn = (state.turn + 1) % state.players.length;
-            state.log.push(`Ход игрока ${state.players[state.turn].name}`);
-        }
-        await db.ref('geofan/r/' + myRoom).set(state);
-    }
-
-    async function attack(idx) {
+    async function handleAttack(idx) {
         if(state.players[state.turn].id !== myId) return;
         const me = state.players[state.turn];
         const cell = state.cells[idx];
-        if(cell.owner === me.countryIdx) return;
-        if(me.army < 15) return alert("Армия истощена!");
+        if(cell.owner === me.cIdx) return;
 
-        const myPower = me.army * (Math.random() + 0.5);
-        const enPower = cell.army * (Math.random() + 0.5);
+        const amount = prompt(`У тебя ${me.army} воинов. Сколько отправить в атаку?`, me.army);
+        const val = parseInt(amount);
+        if(isNaN(val) || val <= 0 || val > me.army) return alert("Некорректное число!");
+
+        const myPower = val * (Math.random() + 0.6);
+        const enPower = cell.army * (Math.random() + 0.6);
 
         if(myPower > enPower) {
-            state.log.push(`${me.name} захватил территорию на острове ${countryStyles[Math.floor(idx/6)].name}!`);
-            cell.owner = me.countryIdx;
-            cell.army = Math.floor(me.army / 2);
-            me.army = Math.floor(me.army / 2);
+            state.log.push(`${me.name} захватил клетку!`);
+            cell.owner = me.cIdx;
+            cell.army = Math.floor(val * 0.5);
+            me.army -= val;
         } else {
-            state.log.push(`Атака ${me.name} захлебнулась.`);
-            me.army = Math.floor(me.army * 0.4);
+            state.log.push(`Атака ${me.name} отбита.`);
+            me.army -= val;
         }
-        await db.ref('geofan/r/' + myRoom).set(state);
+        await db.ref('geofan/rooms/' + myRoom).set(state);
     }
 
-    function hexToRgb(hex) {
-        const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-        return `${r}, ${g}, ${b}`;
+    async function action(type) {
+        if(state.players[state.turn].id !== myId) return;
+        const me = state.players[state.turn];
+
+        if(type === 'eco' && me.cash >= 400) { me.cash -= 400; me.eco += 0.5; }
+        else if(type === 'army' && me.cash >= 250) { me.cash -= 250; me.army += 30; }
+        else if(type === 'end') {
+            me.cash += (200 * me.eco); // Доход увеличен
+            state.turn = (state.turn + 1) % state.players.length;
+        }
+        await db.ref('geofan/rooms/' + myRoom).set(state);
     }
 </script>
 </body>
-  </html>
+</html>
